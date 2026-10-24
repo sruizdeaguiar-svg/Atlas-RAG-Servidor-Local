@@ -1,5 +1,7 @@
 # Atlas RAG Local
 
+[English](README.en.md) · [Guía de uso](docs/GUIA.md) · [Estructura](docs/ESTRUCTURA.md)
+
 **Tus documentos, tus modelos y tus análisis, en tu Mac.**
 
 Servidor RAG local con aplicación nativa para macOS y cliente universal para iPhone/iPad. Organiza carpetas independientes, indexa documentos, busca con referencias y realiza análisis reproducibles con R. Interfaz en español e inglés. Código bajo [Apache 2.0](LICENSE).
@@ -171,6 +173,6 @@ Las bases de datos, credenciales, modelos, capturas privadas, perfiles de Apple 
 
 ![Vista de la aplicación Atlas RAG Local](docs/screenshots/colecciones.png)
 
-### Actualización 1.1.2
+## Historial de versiones
 
-Corregida la navegación con teclado físico en iPad: Tab avanza entre campos, botones y selectores; Mayús+Tab retrocede. Incluye la pantalla nativa de conexión y los formularios de la biblioteca. Verificado en un iPad físico y en los campos de acceso del navegador de escritorio.
+Las notas y descargas anteriores están en la rama [historial-versiones](https://github.com/sruizdeaguiar-svg/Atlas-RAG-Servidor-Local/tree/historial-versiones). `main` contiene el código actual; cada entrega conserva su etiqueta y su publicación en Releases.

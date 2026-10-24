@@ -1,5 +1,7 @@
 # Instalar Atlas en iPhone o iPad
 
+[English](INSTALL.en.md)
+
 La app es universal, requiere iOS/iPadOS 17 o posterior y se conecta al servidor Atlas del Mac por la red local. El índice, R y las credenciales de IA permanecen en el Mac.
 
 ## Compilar e instalar con Xcode

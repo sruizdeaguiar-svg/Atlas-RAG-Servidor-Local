@@ -1,5 +1,7 @@
 # Estructura del proyecto
 
+[English](STRUCTURE.en.md)
+
 El repositorio y el ZIP de fuentes conservan la organización del código local.
 
 ```text

@@ -1,5 +1,7 @@
 # Atlas para iPhone y iPad
 
+[English](README.en.md)
+
 Cliente universal SwiftUI + WKWebView para acceder al servidor local Atlas del Mac.
 
 - [Instalación, firma y conexión](INSTALL.md).
