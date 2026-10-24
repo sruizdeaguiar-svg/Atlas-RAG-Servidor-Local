@@ -122,3 +122,28 @@ def test_generation_default_context_65536(manager,monkeypatch):
     engines.select('llama',model['id'])
     assert captured==[65536]
     with pytest.raises(ValueError):engines.select('llama',model['id'],65537)
+
+def test_llama_detection_prefers_newest_build_and_caches(monkeypatch):
+    import types
+    calls=[]
+    def version(args,**kwargs):
+        calls.append(args[0]);return types.SimpleNamespace(returncode=0,stdout='version: 0.7 (build '+('11840' if args[0]=='new' else '10815')+', commit abc)',stderr='')
+    monkeypatch.setattr(engines.subprocess,'run',version)
+    engines.ranked_llama_binary.cache_clear()
+    candidates=(('old',1),('new',2))
+    assert engines.ranked_llama_binary(candidates)=='new'
+    assert engines.ranked_llama_binary(candidates)=='new' and len(calls)==2
+    engines.ranked_llama_binary.cache_clear()
+
+@pytest.mark.parametrize('guard,expected',[(False,'off'),(True,'safe')])
+def test_omlx_spawn_respects_atlas_memory_setting(manager,monkeypatch,guard,expected):
+    cfg=engines.config();cfg['memory_guard']=guard
+    monkeypatch.setattr(engines,'config',lambda:cfg)
+    monkeypatch.setattr(engines,'listening',lambda port:False)
+    monkeypatch.setattr(engines,'secured_command',lambda name,args,env:(args,env))
+    def spawn(args,**kwargs):
+        assert args[args.index('--memory-guard')+1]==expected
+        raise RuntimeError('SPAWN_BOUNDARY_VERIFIED')
+    monkeypatch.setattr(engines.subprocess,'Popen',spawn)
+    model={'path':str(manager/'tiny.gguf'),'api_model':'fixture'}
+    with pytest.raises(RuntimeError,match='SPAWN_BOUNDARY_VERIFIED'):engines.launch('omlx',model,65536)

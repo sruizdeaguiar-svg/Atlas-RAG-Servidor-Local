@@ -1,5 +1,5 @@
 """Exclusive local model lifecycle. Signals only processes created in Atlas's workspace."""
-import os,json,time,socket,subprocess,threading,hashlib,signal,urllib.parse
+import os,json,time,socket,subprocess,threading,hashlib,signal,urllib.parse,re,functools
 from pathlib import Path
 import httpx,psutil
 from .store import STATE,ROOT as APP_ROOT,setting,set_setting
@@ -14,12 +14,37 @@ LMS_STATUS={}
 ROOT=STATE/'engines'
 PORTS={'llama':18880,'omlx':18881,'vllm':18882,'lmstudio':18883}
 
+
+@functools.lru_cache(maxsize=16)
+def ranked_llama_binary(candidates):
+    """Choose the newest detected build, caching by path + modification time."""
+    scores=[]
+    for order,(path,mtime) in enumerate(candidates):
+        build=-1
+        try:
+            result=subprocess.run([path,'--version'],capture_output=True,text=True,timeout=5,env={'PATH':'/usr/bin:/bin'})
+            match=re.search(r'(?:build\s+|\bb)(\d+)',result.stdout+'\n'+result.stderr,re.I)
+            if result.returncode==0 and match:build=int(match.group(1))
+        except (OSError,subprocess.TimeoutExpired):pass
+        scores.append((build,-order,path))
+    return max(scores)[2] if scores else ''
+
+def detected_llama_binary(paths):
+    entries=[]
+    for path in paths:
+        try:
+            p=Path(path)
+            if p.is_file():entries.append((str(p),p.stat().st_mtime_ns))
+        except OSError:pass
+    return ranked_llama_binary(tuple(entries))
+
 def defaults():
     home=Path.home()
     roots=[str(p) for p in [Path('/Volumes/Seguridad/models'),Path('/Volumes/Seguridad/Llama'),home/'.cache/huggingface/hub',home/'.omlx/models',home/'.lmstudio/models'] if p.is_dir()]
     import shutil
-    candidates={'llama':['/opt/homebrew/bin/llama-server','/usr/local/bin/llama-server','/Volumes/Seguridad/Llama/llama.cpp/build/bin/llama-server'],'omlx':['/Applications/oMLX.app/Contents/MacOS/omlx-cli','/opt/homebrew/bin/omlx'],'vllm':['/opt/homebrew/bin/vllm','/usr/local/bin/vllm'],'lmstudio':[str(home/'.lmstudio/bin/lms')]}
+    candidates={'llama':['/opt/homebrew/bin/llama-server','/usr/local/bin/llama-server','/Volumes/Seguridad/Llama/optimizacion-m4-pro/bin/llama-server','/Volumes/Seguridad/Llama/llama.cpp/build/bin/llama-server'],'omlx':['/Applications/oMLX.app/Contents/MacOS/omlx-cli','/opt/homebrew/bin/omlx'],'vllm':['/opt/homebrew/bin/vllm','/usr/local/bin/vllm'],'lmstudio':[str(home/'.lmstudio/bin/lms')]}
     binaries={n:next((p for p in paths if Path(p).is_file()),shutil.which({'llama':'llama-server','lmstudio':'lms'}.get(n,n)) or paths[0]) for n,paths in candidates.items()}
+    binaries['llama']=detected_llama_binary(candidates['llama']) or binaries['llama']
     try:
         for volume in Path('/Volumes').iterdir():
             for suffix in ['models','Modelos']:
@@ -280,7 +305,7 @@ def launch(name,model,context):
         base=ROOT/'omlx';base.mkdir(exist_ok=True)
         # Isolated settings prevent pinned/shared models being preloaded.
         model_dir=Path(model['path']).parent if model else Path(cfg['roots'][0])
-        args=[binary,'serve','--host','127.0.0.1','--port',str(port),'--base-path',str(base),'--model-dir',str(model_dir),'--no-hf-cache','--no-cache','--initial-cache-blocks','1','--memory-guard','safe']
+        args=[binary,'serve','--host','127.0.0.1','--port',str(port),'--base-path',str(base),'--model-dir',str(model_dir),'--no-hf-cache','--no-cache','--initial-cache-blocks','1','--memory-guard','safe' if cfg.get('memory_guard',False) else 'off']
         if model:
             api_model=Path(model['path']).name
             (base/'model_settings.json').write_text(json.dumps({'version':1,'models':{api_model:{'max_context_window':context}}}))
@@ -318,7 +343,8 @@ def launch(name,model,context):
             r.update(model=model['id'],api_model=api_model);save(r)
         if embedding:verify_embedding(port,api_model)
         return r
-    log=(ROOT/(name+'.log')).open('ab')
+    log_path=ROOT/(name+'.log'); log_offset=log_path.stat().st_size if log_path.exists() else 0
+    log=log_path.open('ab')
     env={**engine_env(),'OMLX_BASE_PATH':str(ROOT/'omlx')}
     args,env=secured_command(name,args,env)
     proc=subprocess.Popen(args,cwd=ROOT,env=env,stdin=subprocess.DEVNULL,stdout=log,stderr=log,start_new_session=True);log.close();CHILDREN[proc.pid]=proc
@@ -326,7 +352,12 @@ def launch(name,model,context):
     deadline=time.monotonic()+180
     while time.monotonic()<deadline:
         if CANCEL.is_set():raise ValueError('Engine operation cancelled')
-        if proc.poll() is not None:raise ValueError(name+' stopped during startup; see its Atlas engine log')
+        if proc.poll() is not None:
+            with log_path.open('rb') as diagnostic:
+                diagnostic.seek(max(log_offset,log_path.stat().st_size-8192));tail=diagnostic.read(8192).decode('utf-8','replace')
+            architecture=re.search(r"unknown model architecture: ['\"]([a-zA-Z0-9_.-]{1,80})",tail)
+            if architecture:raise ValueError(f'llama.cpp no admite la arquitectura {architecture.group(1)} en esta compilación. Actualiza el motor o elige un modelo compatible. / This llama.cpp build does not support this model architecture.')
+            raise ValueError(name+' stopped during startup; see its Atlas engine log')
         try:
             response=httpx.get(f'http://127.0.0.1:{port}/v1/models',timeout=1,trust_env=False)
             if response.status_code==200:break

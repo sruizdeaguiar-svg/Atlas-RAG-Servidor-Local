@@ -8,9 +8,9 @@ A local RAG server with a native macOS application and a universal iPhone/iPad c
 
 ![Atlas collections](docs/screenshots/colecciones.png)
 
-## Version 1.1.4
+## Version 1.1.5
 
-Default context of 65,536 tokens, up to 256 R variables and 32 MiB of R output, and a fix for local interpretation of R results. [Changes and validation](docs/CHANGES-1.1.4.en.md).
+Fixed llama.cpp discovery and oMLX memory guard configuration. Default context of 65,536 tokens, up to 256 R variables and 32 MiB of R output, and a fix for local interpretation of R results. [Changes and validation](docs/CHANGES-1.1.5.en.md).
 
 ## Features
 

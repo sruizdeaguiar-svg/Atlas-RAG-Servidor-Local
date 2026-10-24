@@ -10,9 +10,9 @@ Servidor RAG local con aplicación nativa para macOS y cliente universal para iP
 
 ![Colecciones de Atlas](docs/screenshots/colecciones.png)
 
-## Versión 1.1.4
+## Versión 1.1.5
 
-Contexto predeterminado de 65.536 tokens, hasta 256 variables y 32 MiB de salida en R, y corrección de la interpretación local de resultados. [Detalles y validación](docs/CAMBIOS-1.1.4.md).
+Detección corregida de llama.cpp y control de memoria de oMLX coherente con la opción de Atlas. Contexto predeterminado de 65.536 tokens, hasta 256 variables y 32 MiB de salida en R, y corrección de la interpretación local de resultados. [Detalles y validación](docs/CAMBIOS-1.1.5.md).
 
 ## Funciones
 
