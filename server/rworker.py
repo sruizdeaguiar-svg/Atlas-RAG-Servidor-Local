@@ -2,7 +2,7 @@
 import os, resource, sys
 from pathlib import Path
 resource.setrlimit(resource.RLIMIT_CPU,(25,25))
-resource.setrlimit(resource.RLIMIT_FSIZE,(4*1024*1024,4*1024*1024))
+resource.setrlimit(resource.RLIMIT_FSIZE,(32*1024*1024,32*1024*1024))
 resource.setrlimit(resource.RLIMIT_NOFILE,(1024,1024))
 work=Path(sys.argv[2]); os.chdir(work)
 fd=os.open(work/'output.txt',os.O_CREAT|os.O_TRUNC|os.O_WRONLY,0o600)

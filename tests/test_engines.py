@@ -114,3 +114,11 @@ def test_switch_away_from_lmstudio_closes_app_before_new_engine(manager,monkeypa
     monkeypatch.setattr(engines,'launch',lambda n,m,c:events.append('launch-new') or {'api_model':m['api_model']})
     engines.select('llama',engines.local_models('llama')[0]['id'])
     assert events==['stop-owned','quit-lmstudio','launch-new']
+
+def test_generation_default_context_65536(manager,monkeypatch):
+    captured=[]
+    monkeypatch.setattr(engines,'launch',lambda n,m,c:captured.append(c) or {'api_model':m['api_model']})
+    model=engines.local_models('llama')[0]
+    engines.select('llama',model['id'])
+    assert captured==[65536]
+    with pytest.raises(ValueError):engines.select('llama',model['id'],65537)

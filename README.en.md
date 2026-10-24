@@ -8,6 +8,10 @@ A local RAG server with a native macOS application and a universal iPhone/iPad c
 
 ![Atlas collections](docs/screenshots/colecciones.png)
 
+## Version 1.1.4
+
+Default context of 65,536 tokens, up to 256 R variables and a fix for local interpretation of R results. [Changes and validation](docs/CHANGES-1.1.4.en.md).
+
 ## Features
 
 - Independent collections with a Mac folder browser and an automatic collection name, including when accessed from an iPad.

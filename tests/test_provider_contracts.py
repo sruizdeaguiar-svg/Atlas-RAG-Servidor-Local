@@ -114,3 +114,26 @@ def test_embedding_catalog_filters_chat_and_keeps_capabilities(monkeypatch):
 def test_embedding_catalog_rejects_cloud_without_query(monkeypatch):
     monkeypatch.setattr(providers,'catalog',lambda *a:pytest.fail('Cloud must not be queried'))
     with pytest.raises(ValueError):providers.embedding_models(1,'openai')
+
+def test_interpretation_preserves_all_executed_results(monkeypatch):
+    from server import app as api
+    result='FICTITIOUS R OUTPUT\n'+'n = 3, mean = 22\n'*1500+'FINAL_RESULT_22'
+    monkeypatch.setattr(api,'analysis_record',lambda *a:{'state':'complete','result':result,'question':'Interpret fictitious results'})
+    def complete(uid,name,messages,*args):
+        assert result in messages[0]['content']
+        return 'Mean 22, sample 3.'
+    monkeypatch.setattr(providers,'complete',complete)
+    assert api.interpret('fixture',api.Interpretation(provider='llama',model='fixture'),{'id':1})['answer']=='Mean 22, sample 3.'
+
+def test_context_http_error_is_actionable_and_does_not_echo_data(monkeypatch):
+    monkeypatch.setattr(providers,'config',lambda:providers.DEFAULTS)
+    monkeypatch.setattr(providers,'headers',lambda *a:{})
+    class Client:
+        def __init__(self,**kw):assert kw['timeout'].read==600
+        def __enter__(self):return self
+        def __exit__(self,*a):pass
+        def post(self,*a,**kw):
+            return type('Response',(),{'status_code':400,'text':'request (6402 tokens) exceeds the available context size (4096 tokens) PRIVATE_PROMPT'})()
+    monkeypatch.setattr(providers.httpx,'Client',Client)
+    with pytest.raises(ValueError,match='65536') as err:providers.complete(1,'llama',[],model='fixture')
+    assert 'PRIVATE_PROMPT' not in str(err.value)

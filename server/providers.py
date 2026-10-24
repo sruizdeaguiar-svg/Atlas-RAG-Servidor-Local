@@ -113,16 +113,24 @@ def complete(uid,name,messages,model=None,consent=False,reasoning_effort=None,pa
     if name=='lmstudio':
         entry=next((m for m in catalog(uid,name) if m['id']==model),None)
         if entry and entry.get('loaded') is False: raise ValueError('Load this model in LM Studio first; Atlas will not change running engines automatically')
-    if name!='openai' and profile['context_length']:
+    context_limit=profile['context_length']
+    if name!='openai' and not context_limit:
+        # The engine's actual load context applies even without a saved profile.
+        from . import engines
+        active_engine=engines.record()
+        if active_engine.get('name')==name and active_engine.get('api_model')==model and url==f'http://127.0.0.1:{engines.PORTS[name]}/v1':
+            context_limit=active_engine.get('context',0)
+    if name!='openai' and context_limit:
+
         entry=next((m for m in catalog(uid,name) if m['id']==model),None)
         if not entry: raise ValueError('Selected model is no longer available')
         active=entry.get('active_context') or entry.get('max_context')
-        if active and profile['context_length']>active: raise ValueError(f'Requested context exceeds server capacity ({active}); change the context in the engine before retrying')
+        if active and context_limit>active: raise ValueError(f'Requested context exceeds server capacity ({active}); change the context in the engine before retrying')
         # UTF-8 bytes form a conservative upper token bound, plus chat-template reserve.
         budget=sum(len(m.get('content','').encode('utf-8'))+64 for m in messages)+profile['max_tokens']+256
-        if budget>profile['context_length']: raise ValueError('Input plus reserved output exceeds the Atlas context limit; increase context or reduce the query scope')
+        if budget>context_limit: raise ValueError(f'Input plus reserved output exceeds the Atlas context limit ({context_limit} tokens); increase the loaded context or reduce the selected results/variables. No results were silently truncated.')
     try:
-        with httpx.Client(timeout=150,trust_env=False) as client:
+        with httpx.Client(timeout=httpx.Timeout(600,connect=10),trust_env=False) as client:
             if name=='openai':
                 answer=''; completed=False
                 payload={'model':model,'input':[{**m,'role':'developer' if m['role']=='system' else m['role']} for m in messages],'store':False,'stream':True}
@@ -139,7 +147,12 @@ def complete(uid,name,messages,model=None,consent=False,reasoning_effort=None,pa
                 if not completed: raise ValueError('OpenAI stream interrupted before completion')
                 return answer
             r=client.post(url+'/chat/completions',headers=headers(uid,name),json={'model':model,'messages':messages,'max_tokens':profile['max_tokens'],'temperature':profile['temperature'],'top_p':profile['top_p'],'stream':False})
-            if r.status_code>=400: raise ValueError(f'{name}: HTTP {r.status_code}; check server, model and credential')
+            if r.status_code>=400:
+                # Classify the error without exposing a server response that may echo private prompts.
+                detail=r.text[:8192].lower()
+                if any(x in detail for x in ['context size','context length','context_length','context window','n_ctx','too many tokens','maximum context','context_length_exceeded']):
+                    raise ValueError(f'{name}: el contexto cargado no admite estos resultados. Carga el modelo con 65536 tokens o reduce las variables; HTTP {r.status_code}. / Loaded context is too small for these results; load 65536 tokens or select fewer variables.')
+                raise ValueError(f'{name}: HTTP {r.status_code}; el motor rechazó la petición. Revisa el modelo y su registro en Modelos e IA. / The engine rejected the request; check its model and log in Models & AI.')
             answer=r.json()['choices'][0]['message'].get('content') or ''
             if not answer.strip(): raise ValueError('Model returned no final answer; reduce context or choose another model')
             return answer

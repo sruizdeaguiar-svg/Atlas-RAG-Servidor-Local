@@ -345,11 +345,11 @@ def verify_embedding(port,model):
     vectors=r.json().get('data',[])
     if not vectors or not vectors[0].get('embedding'):raise ValueError('Embedding server returned no vectors')
 
-def select(name,model_id='',context=4096):
+def select(name,model_id='',context=65536):
     if name not in NAMES:raise ValueError('Unknown local engine')
     if not config()['enabled']:raise ValueError('Enable Atlas engine management first')
     if not config()['roots']:raise ValueError('Configure at least one model directory')
-    if not 512<=context<=32768:raise ValueError('Managed context must be between 512 and 32768')
+    if not 512<=context<=65536:raise ValueError('Managed context must be between 512 and 65536')
     model=next((m for m in local_models(name,'all') if m['id']==model_id),None) if model_id else None
     if model_id and not model:raise ValueError('Choose an installed model from the catalog')
     current=record()
@@ -368,7 +368,7 @@ def select(name,model_id='',context=4096):
     except Exception:
         stop_all();raise
 
-def submit(action,name='',model='',context=4096,confirmation=''):
+def submit(action,name='',model='',context=65536,confirmation=''):
     with LOCK:
         if JOB['busy']:
             if action=='stop':

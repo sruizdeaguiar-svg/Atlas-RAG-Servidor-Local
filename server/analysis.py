@@ -7,7 +7,7 @@ from .documents import tables, file_hash
 from .providers import complete
 class Plan(BaseModel):
     method: Literal['describe','correlation','regression','ttest','wilcox','anova','chisq']='describe'
-    columns: list[str]=Field(default_factory=list,max_length=20)
+    columns: list[str]=Field(default_factory=list,max_length=256)
     outcome: str=''
     group: str=''
     explanation: str=Field(default='',max_length=2000)
@@ -46,7 +46,7 @@ def compile_r(plan,info):
     q=lambda s:json.dumps(s,ensure_ascii=False)
     cols=plan.columns or list(numeric)[:12]
     ref=lambda s:'d[['+q(s)+']]'
-    code='''options(warn=1, width=110)
+    code='''options(warn=1, width=180, max.print=.Machine$integer.max)
 set.seed(20261024)
 d <- read.csv("input.csv", check.names=FALSE, stringsAsFactors=FALSE, na.strings=c("", "NA"))
 cat("Rows:", nrow(d), " Columns:", ncol(d), "\\n")
@@ -117,8 +117,10 @@ def run(ident):
                     os.killpg(p.pid,signal.SIGKILL); p.wait(); raise ValueError('Analysis exceeded 512 MiB process memory')
             except psutil.Error: pass
             time.sleep(.05)
-        result=(work/'output.txt').read_text(errors='replace')[:200000] if (work/'output.txt').exists() else ''
+        result=(work/'output.txt').read_text(errors='replace') if (work/'output.txt').exists() else ''
         state='complete' if p.returncode==0 else 'failed'
+        if (work/'output.txt').exists() and (work/'output.txt').stat().st_size>=32*1024*1024:
+            state='failed'; result+='\n[Atlas: salida de R alcanzó el límite de 32 MiB; el resultado está incompleto. / R output reached 32 MiB; results are incomplete.]\n'
         if not result: result='R exited with code '+str(p.returncode)
     except ValueError as exc:
         result=str(exc); state='failed'

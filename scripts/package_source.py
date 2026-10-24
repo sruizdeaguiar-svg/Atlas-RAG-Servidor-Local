@@ -2,14 +2,14 @@
 from pathlib import Path
 import zipfile,json,hashlib,shutil
 ROOT=Path(__file__).resolve().parents[1]
-VERSION='1.1.3'
+VERSION='1.1.4'
 SCRIPTS=['build_app.sh','build_installer.sh','build_ios.sh','install.sh','install_ipad.sh','control.py','prepare_update.py','enable_lan.py','verify_release.py','verify_engine_lifecycle.py','mobile_qa.py','package_source.py','prepare_engine_security.py','engine_entry.py']
 files=[ROOT/n for n in ['README.md','README.en.md','SECURITY.md','LICENSE','NOTICE','.gitignore','requirements.txt','requirements.lock.txt','Abrir Atlas.command']]
 for folder in ['server','web','native','ios']:
     files += [p for p in (ROOT/folder).rglob('*') if p.is_file() and not any(part.startswith('.') or part=='__pycache__' for part in p.relative_to(ROOT).parts) and p.suffix!='.pyc']
 files += [ROOT/'scripts'/n for n in SCRIPTS]
 files += list((ROOT/'tests').glob('test_*.py'))
-files += [ROOT/'docs'/n for n in ['ESTRUCTURA.md','STRUCTURE.en.md','GUIA.md','GUIDE.en.md','SEGURIDAD-1.1.3.md','SECURITY-1.1.3.en.md']]+list((ROOT/'docs/screenshots').glob('*.png'))
+files += [ROOT/'docs'/n for n in ['ESTRUCTURA.md','STRUCTURE.en.md','GUIA.md','GUIDE.en.md','SEGURIDAD-1.1.3.md','SECURITY-1.1.3.en.md','CAMBIOS-1.1.4.md','CHANGES-1.1.4.en.md']]+list((ROOT/'docs/screenshots').glob('*.png'))
 files=sorted({p for p in files if not any(part.startswith('._') for part in p.relative_to(ROOT).parts)})
 for p in files:
     assert p.is_file(),p
