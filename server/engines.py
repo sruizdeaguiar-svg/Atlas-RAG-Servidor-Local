@@ -65,7 +65,7 @@ def command(args,timeout=40):
     if r.returncode:raise ValueError((r.stderr or r.stdout or 'Engine command failed')[-1200:])
     return r.stdout
 
-def local_models(name):
+def _all_local_models(name):
     if name not in NAMES:raise ValueError('Unknown local engine')
     if name=='lmstudio':
         try:
@@ -75,11 +75,11 @@ def local_models(name):
                 data=json.loads(command([config()['binaries']['lmstudio'],'ls','--json'],12))
                 models=[]
                 for m in data:
-                    if m.get('type')!='llm':continue
+                    if m.get('type') not in {'llm','embedding'}:continue
                     key=m.get('modelKey') or m.get('indexedModelIdentifier')
                     if not key or key.startswith('-') or not m.get('sizeBytes'):continue
                     ident=hashlib.sha256(('lmstudio:'+key).encode()).hexdigest()[:20]
-                    models.append({'id':ident,'name':m.get('displayName') or key,'path':m.get('path',key),'model_key':key,'size_bytes':m['sizeBytes'],'api_model':'atlas-'+ident,'type':'llm','loaded':record().get('model')==ident,'active_context':record().get('context') if record().get('model')==ident else None})
+                    models.append({'id':ident,'name':m.get('displayName') or key,'path':m.get('path',key),'model_key':key,'size_bytes':m['sizeBytes'],'api_model':'atlas-'+ident,'type':m.get('type','llm'),'loaded':record().get('model')==ident,'active_context':record().get('context') if record().get('model')==ident else None})
                 LMS_CACHE.update(time=time.monotonic(),models=models)
                 ROOT.mkdir(parents=True,exist_ok=True);(ROOT/'lmstudio-catalog.json').write_text(json.dumps(models))
                 return models
@@ -108,12 +108,23 @@ def local_models(name):
                 try:
                     size=path.stat().st_size if path.is_file() else sum(f.stat().st_size for f in path.glob('*.safetensors'))
                     if path.is_file() and '-00001-of-' in path.name:size=sum(f.stat().st_size for f in path.parent.glob(path.name.replace('-00001-of-','-*-of-')))
-                    if any(word in path.name.lower() for word in ['embedding','bge-','minilm','nomic-embed']):continue
+                    model_label=path.parent.parent.name if path.parent.name=='snapshots' else path.name
+                    kind='embedding' if any(word in model_label.lower() for word in ['embed','bge-','minilm','e5-','gte-']) else 'llm'
+                    if path.is_dir():
+                        try:
+                            meta=json.loads((path/'config.json').read_text());arch=' '.join(meta.get('architectures',[])).lower()
+                            if any(x in arch for x in ['embedding','bertmodel','xlmroberta']):kind='embedding'
+                        except (OSError,ValueError):pass
                     ident=hashlib.sha256(str(path).encode()).hexdigest()[:20]
                     api_model=path.name if name=='omlx' else 'atlas-'+ident
-                    result[ident]={'id':ident,'name':(path.parent.parent.name.removeprefix('models--').replace('--','/')+' / '+path.name[:8]) if path.parent.name=='snapshots' else path.name,'path':str(path),'size_bytes':size,'api_model':api_model,'type':'llm','loaded':record().get('model')==ident,'active_context':record().get('context') if record().get('model')==ident else None}
+                    result[ident]={'id':ident,'name':(path.parent.parent.name.removeprefix('models--').replace('--','/')+' / '+path.name[:8]) if path.parent.name=='snapshots' else path.name,'path':str(path),'size_bytes':size,'api_model':api_model,'type':kind,'loaded':record().get('model')==ident,'active_context':record().get('context') if record().get('model')==ident else None}
                 except OSError:pass
     return sorted(result.values(),key=lambda x:x['name'].casefold())[:1000]
+
+def local_models(name,purpose='generation'):
+    if purpose not in {'generation','embedding','all'}:raise ValueError('Unknown model purpose')
+    items=_all_local_models(name)
+    return [m for m in items if purpose=='all' or (m.get('type')=='embedding')==(purpose=='embedding')]
 
 def lmstudio_app(action):
     helper=APP_ROOT/'build/EngineTools'
@@ -121,6 +132,35 @@ def lmstudio_app(action):
     result=json.loads(command([str(helper),action],20))
     LMS_STATUS.clear()
     return result
+
+def close_lmstudio_completely():
+    # Explicit engine switches and stop-all also close an already-open LM Studio.
+    family=[]
+    for process in psutil.process_iter(['exe','uids','create_time']):
+        try:
+            exe=process.info['exe'] or ''
+            if process.info['uids'].real==os.getuid() and ('/LM Studio.app/Contents/' in exe or ('.lmstudio' in exe and Path(exe).name=='llmster')):
+                family.append((process,process.info['create_time']))
+        except (psutil.Error,TypeError):pass
+    if not family and not lmstudio_status()['application_running']:return
+    cli=config()['binaries']['lmstudio']
+    try:
+        command([cli,'unload','--all'],60)
+        command([cli,'server','stop'],20)
+    except ValueError:pass
+    lmstudio_app('quit')
+    pending=[]
+    for process,created in family:
+        try:
+            if process.is_running() and abs(process.create_time()-created)<.01:process.terminate();pending.append(process)
+        except psutil.NoSuchProcess:pass
+    _,pending=psutil.wait_procs(pending,timeout=8)
+    for process in pending:
+        try:process.kill()
+        except psutil.NoSuchProcess:pass
+    _,pending=psutil.wait_procs(pending,timeout=3)
+    LMS_STATUS.clear()
+    if pending:raise ValueError('LM Studio still has running processes; switch cancelled')
 
 def lmstudio_status():
     now=time.monotonic()
@@ -190,7 +230,7 @@ def budget(model,context):
     # Includes conservative buffers; KV layout still depends on the model/runtime.
     estimated=int(model['size_bytes']*1.5)+1024**3+context*65536
     available=psutil.virtual_memory().available
-    if estimated>available-2*1024**3:raise ValueError('Insufficient available memory for this model and context; stop an Atlas engine or choose a smaller model/context')
+    if estimated>available-2*1024**3:raise ValueError(f'Memoria insuficiente: pesos {model["size_bytes"]/1024**3:.1f} GB; estimación con contexto {context}: {estimated/1024**3:.1f} GB + 2 GB de reserva; disponibles ahora {available/1024**3:.1f} GB. Un MoE necesita todos sus pesos. Reduce el contexto o elige un modelo menor; Atlas no detiene motores externos automáticamente.')
     return estimated
 
 def launch(name,model,context):
@@ -199,9 +239,16 @@ def launch(name,model,context):
     if listening(port):raise ValueError('Dedicated Atlas port is already in use; no external process was stopped')
     ROOT.mkdir(parents=True,exist_ok=True)
     api_model=model['api_model'] if model else ''
+    embedding=bool(model and model.get('type')=='embedding')
+    if embedding and Path(model['path']).is_dir():
+        try:
+            metadata=json.loads((Path(model['path'])/'config.json').read_text());limit=metadata.get('max_position_embeddings')
+            if isinstance(limit,int) and limit>0:context=min(context,limit)
+        except (OSError,ValueError):pass
     if name=='llama':
         args=[binary,'--host','127.0.0.1','--port',str(port)]
         args+=['--model',model['path'],'--alias',api_model,'--ctx-size',str(context),'--gpu-layers','99'] if model else ['--models-dir',cfg['roots'][0],'--models-max','1','--no-models-autoload']
+        if embedding:args+=['--embedding','--pooling','mean']
     elif name=='omlx':
         base=ROOT/'omlx';base.mkdir(exist_ok=True)
         # Isolated settings prevent pinned/shared models being preloaded.
@@ -213,6 +260,7 @@ def launch(name,model,context):
     elif name=='vllm':
         if not model:return {'waiting_model':True}
         args=[binary,'serve',model['path'],'--host','127.0.0.1','--port',str(port),'--served-model-name',api_model,'--max-model-len',str(context),'--max-num-seqs','1','--gpu-memory-utilization','0.20','--kv-cache-memory-bytes','268435456']
+        if embedding:args+=['--runner','pooling']
     else:
         # A shared LM Studio API must not be commandeered by automatic selection.
         prior=urllib.parse.urlsplit(providers.config()['lmstudio']['url']).port or 1234
@@ -227,8 +275,9 @@ def launch(name,model,context):
         command([binary,'server','start','--port',str(port),'--bind','127.0.0.1'],45)
         r={'name':name,'port':port,'model':model['id'] if model else '','api_model':api_model,'context':context};save(r)
         if model:
-            command([binary,'load',model.get('model_key',model['path']),'--identifier',api_model,'--context-length',str(context),'-y'],180)
+            command([binary,'load',model.get('model_key',model['path']),'--identifier',api_model]+([] if embedding else ['--context-length',str(context)])+['-y'],180)
             r.update(model=model['id'],api_model=api_model);save(r)
+        if embedding:verify_embedding(port,api_model)
         return r
     log=(ROOT/(name+'.log')).open('ab')
     env={**os.environ,'HF_HUB_OFFLINE':'1','HF_HUB_DISABLE_TELEMETRY':'1','TRANSFORMERS_OFFLINE':'1','OMLX_BASE_PATH':str(ROOT/'omlx')}
@@ -247,25 +296,34 @@ def launch(name,model,context):
     if name=='omlx' and model:
         response=httpx.post(f'http://127.0.0.1:{port}/v1/models/{urllib.parse.quote(api_model,safe="")}/load',timeout=180,trust_env=False)
         if response.status_code>=400:raise ValueError('oMLX rejected model load: HTTP '+str(response.status_code))
+    if embedding:verify_embedding(port,api_model)
     return r
+
+def verify_embedding(port,model):
+    r=httpx.post(f'http://127.0.0.1:{port}/v1/embeddings',json={'model':model,'input':['Atlas readiness check']},timeout=90,trust_env=False)
+    if r.status_code>=400:raise ValueError('Embedding model did not become ready: HTTP '+str(r.status_code))
+    vectors=r.json().get('data',[])
+    if not vectors or not vectors[0].get('embedding'):raise ValueError('Embedding server returned no vectors')
 
 def select(name,model_id='',context=4096):
     if name not in NAMES:raise ValueError('Unknown local engine')
     if not config()['enabled']:raise ValueError('Enable Atlas engine management first')
     if not config()['roots']:raise ValueError('Configure at least one model directory')
     if not 512<=context<=32768:raise ValueError('Managed context must be between 512 and 32768')
-    model=next((m for m in local_models(name) if m['id']==model_id),None) if model_id else None
+    model=next((m for m in local_models(name,'all') if m['id']==model_id),None) if model_id else None
     if model_id and not model:raise ValueError('Choose an installed model from the catalog')
     current=record()
     if current.get('name')==name and current.get('model')==model_id and current.get('context')==context and status()['running']:return current
     stop_all() # Previous process exits completely before any new weights are loaded.
+    if name!='lmstudio':close_lmstudio_completely()
     if model:budget(model,context)
     if CANCEL.is_set():raise ValueError('Engine operation cancelled')
     try:
         r=launch(name,model,context)
         if r.get('waiting_model'):return r
         cfg=providers.config();cfg[name]['url']=f'http://127.0.0.1:{PORTS[name]}/v1'
-        cfg[name]['model']=r.get('api_model','');set_setting('providers',cfg)
+        if not model or model.get('type')!='embedding':cfg[name]['model']=r.get('api_model','')
+        set_setting('providers',cfg)
         return r
     except Exception:
         stop_all();raise
@@ -281,7 +339,7 @@ def submit(action,name='',model='',context=4096,confirmation=''):
     def work():
         try:
             if action=='stop-detected':stop_external(confirmation)
-            elif action=='stop':stop_all()
+            elif action=='stop':stop_all();close_lmstudio_completely()
             elif action=='select':select(name,model,context)
             else:raise ValueError('Unknown engine action')
             JOB.update(message='complete')
@@ -317,7 +375,7 @@ def stop_external(confirmation):
         if item['name']=='lmstudio':
             cli=config()['binaries']['lmstudio'];current=json.loads(command([cli,'server','status','--json'],15))
             if current.get('running') and (current.get('port') or current.get('server',{}).get('port'))!=item['port']:raise ValueError('LM Studio API ownership could not be verified')
-            command([cli,'unload','--all'],60);command([cli,'server','stop'],20);lmstudio_app('quit')
+            close_lmstudio_completely()
             if listening(item['port']):raise ValueError('LM Studio API is still running')
             continue
         try:
@@ -330,4 +388,6 @@ def stop_external(confirmation):
             _,pending=psutil.wait_procs(pending,timeout=3)
             if pending:raise ValueError('Some inference processes are still running')
         except psutil.NoSuchProcess:pass
-    return {'released':True,'remaining':external_inventory()['servers']}
+    remaining=external_inventory()['servers']
+    if remaining:raise ValueError('Some inference services restarted or remain running; inspect the remaining service list')
+    return {'released':True,'remaining':[]}

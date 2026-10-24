@@ -334,8 +334,8 @@ def engine_config(b:EngineConfigInput,u=Depends(admin)):
     if not b.enabled and engines.status()['running']:raise ValueError('Stop Atlas engines before disabling management')
     result=engines.configure(b.model_dump(exclude_none=True));audit(u['id'],'engines.configure','local');return result
 @app.get('/api/engines/{name}/models')
-def engine_models(name:str,u=Depends(admin)):
-    return engines.local_models(name)
+def engine_models(name:str,purpose:Literal['generation','embedding','all']='generation',u=Depends(admin)):
+    return engines.local_models(name,purpose)
 @app.get('/api/engines/detected')
 def engine_detected(u=Depends(admin)):return engines.external_inventory()
 @app.post('/api/engines/action')
@@ -382,7 +382,11 @@ class ProviderTest(BaseModel):
     model:str=''
 @app.get('/api/providers/{name}/embedding-models')
 def provider_embedding_models(name:str,u=Depends(admin)):
-    return {'catalog':providers.embedding_models(u['id'],name)}
+    if name not in engines.NAMES:raise ValueError('Select a local embedding provider')
+    if engines.config()['enabled']:
+        models=engines.local_models(name,'embedding')
+        return {'managed':True,'catalog':[{**m,'managed_id':m['id'],'id':m['api_model']} for m in models]}
+    return {'managed':False,'catalog':providers.embedding_models(u['id'],name)}
 @app.post('/api/providers/test')
 def provider_test(b:ProviderTest,u=Depends(user)):
     entries=providers.catalog(u['id'],b.name,b.consent); out={'models':[m['id'] for m in entries],'catalog':entries}

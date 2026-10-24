@@ -83,6 +83,12 @@ Solo se mantiene un motor gestionado activo. Antes de cargar otro modelo o cambi
 
 Los servicios propios escuchan en loopback, en los puertos 18880–18883. Atlas no toma control silenciosamente de una API externa de LM Studio ni de sus modelos activos. Comprueba una estimación de memoria antes de cargar; el contexto gestionado admite 512–32768 tokens. La compatibilidad depende de la arquitectura del modelo y de la versión instalada del motor.
 
+### Embeddings por colección
+
+En Añadir carpeta se eligen por separado el motor y el modelo de embeddings. Con la gestión automática activada, la elección se ejecuta en el Mac también desde el iPad: arranca el motor y carga el modelo, con indicación de carga, estado listo o error. Apple usa su modelo integrado según el idioma. El catálogo de embeddings está separado del de conversación.
+
+Los modelos MoE requieren memoria para todos sus pesos, además del contexto y los buffers. La comprobación previa muestra los pesos, la estimación y la RAM disponible; no fuerza cargas ni detiene aplicaciones ajenas para hacerlas caber.
+
 ## Análisis y privacidad
 
 La IA propone un plan y R calcula sobre una copia de los datos. El código, las variables y los resultados quedan disponibles para revisión humana. R se ejecuta con sandbox de macOS, sin red, con límites de tiempo, memoria y escritura. La adecuación del método y sus supuestos debe revisarla quien realiza el análisis.
@@ -144,6 +150,8 @@ PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -B -m pytest -q tests/test_*.py
 Las pruebas de límites de R y procesos necesitan los permisos normales de macOS fuera de un sandbox de herramientas adicional. La integración usa estado y puertos aislados; consulta los scripts antes de ejecutarlos. No ejecutes pruebas sobre una biblioteca de producción.
 
 ## Estructura
+
+[Árbol del proyecto y contenido del paquete sin datos](docs/ESTRUCTURA.md).
 
 | Carpeta | Contenido |
 | --- | --- |

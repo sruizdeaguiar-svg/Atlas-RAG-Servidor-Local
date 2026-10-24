@@ -10,6 +10,7 @@ def manager(tmp_path,monkeypatch):
     cfg={'enabled':True,'roots':[str(modeldir)],'binaries':{n:sys.executable for n in engines.NAMES}}
     monkeypatch.setattr(engines,'config',lambda:cfg)
     monkeypatch.setattr(engines,'budget',lambda *a:0)
+    monkeypatch.setattr(engines,'close_lmstudio_completely',lambda:None)
     monkeypatch.setattr(engines.providers,'config',lambda:{n:{'url':'http://127.0.0.1:1234/v1','model':''} for n in engines.NAMES})
     monkeypatch.setattr(engines,'set_setting',lambda *a:None)
     yield modeldir
@@ -64,3 +65,35 @@ def test_stop_external_requires_same_reviewed_inventory(monkeypatch):
     monkeypatch.setattr(engines,'stop_all',lambda:stopped.append(True))
     with pytest.raises(ValueError):engines.stop_external('old-list')
     assert not stopped
+
+def test_embedding_catalog_separates_chat_from_encoder(manager):
+    (manager/'bge-small.gguf').write_bytes(b'encoder')
+    assert [m['name'] for m in engines.local_models('llama','embedding')]==['bge-small.gguf']
+    assert [m['name'] for m in engines.local_models('llama')]==['tiny.gguf']
+
+def test_embedding_selection_preserves_chat_default(manager,monkeypatch):
+    (manager/'bge-small.gguf').write_bytes(b'encoder')
+    cfg={n:{'url':'http://127.0.0.1:1234/v1','model':'chat-default'} for n in engines.NAMES}
+    monkeypatch.setattr(engines.providers,'config',lambda:cfg)
+    events=[]
+    monkeypatch.setattr(engines,'stop_all',lambda:events.append('stopped'))
+    monkeypatch.setattr(engines,'launch',lambda n,m,c:events.append(m['type']) or {'api_model':m['api_model']})
+    model=engines.local_models('llama','embedding')[0]
+    engines.select('llama',model['id'])
+    assert events==['stopped','embedding'] and cfg['llama']['model']=='chat-default'
+
+def test_embedding_readiness_requires_real_vectors(monkeypatch):
+    class Response:
+        status_code=200
+        def json(self):return {'data':[]}
+    monkeypatch.setattr(engines.httpx,'post',lambda *a,**k:Response())
+    with pytest.raises(ValueError,match='no vectors'):engines.verify_embedding(18880,'encoder')
+
+
+def test_switch_away_from_lmstudio_closes_app_before_new_engine(manager,monkeypatch):
+    events=[]
+    monkeypatch.setattr(engines,'stop_all',lambda:events.append('stop-owned'))
+    monkeypatch.setattr(engines,'close_lmstudio_completely',lambda:events.append('quit-lmstudio'))
+    monkeypatch.setattr(engines,'launch',lambda n,m,c:events.append('launch-new') or {'api_model':m['api_model']})
+    engines.select('llama',engines.local_models('llama')[0]['id'])
+    assert events==['stop-owned','quit-lmstudio','launch-new']
