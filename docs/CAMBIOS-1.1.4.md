@@ -11,3 +11,5 @@
 Se mantienen los permisos, el aislamiento de documentos/R y la validación HTTPS de la 1.1.3. Estos cambios no amplían el acceso a datos ni habilitan envíos a la nube.
 
 Validación: 70 pruebas automatizadas aprobadas, incluido R real con 25 variables; 30 comprobaciones HTTP/HTTPS aisladas aprobadas. Se utilizan datos ficticios.
+
+Prueba física en iPad: ejecución de R sobre el CSV ficticio de temperaturas e interpretación con Qwen3.5 9B en LM Studio, cargado con 65.536 tokens. Respuesta recibida sin HTTP 400.

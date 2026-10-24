@@ -120,7 +120,8 @@ def test_interpretation_preserves_all_executed_results(monkeypatch):
     result='FICTITIOUS R OUTPUT\n'+'n = 3, mean = 22\n'*1500+'FINAL_RESULT_22'
     monkeypatch.setattr(api,'analysis_record',lambda *a:{'state':'complete','result':result,'question':'Interpret fictitious results'})
     def complete(uid,name,messages,*args):
-        assert result in messages[0]['content']
+        assert result in messages[1]['content']
+        assert 'Spanish' in messages[0]['content'] and result not in messages[0]['content']
         return 'Mean 22, sample 3.'
     monkeypatch.setattr(providers,'complete',complete)
     assert api.interpret('fixture',api.Interpretation(provider='llama',model='fixture'),{'id':1})['answer']=='Mean 22, sample 3.'

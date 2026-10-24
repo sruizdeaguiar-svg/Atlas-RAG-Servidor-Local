@@ -11,3 +11,5 @@
 The permissions, document/R isolation and HTTPS validation from 1.1.3 remain in place. These changes do not broaden data access or enable cloud transmission.
 
 Validation: 70 automated tests passed, including real R with 25 variables; 30 isolated HTTP/HTTPS checks passed. Tests use fictitious data.
+
+Physical iPad verification: R ran on the fictitious temperature CSV and Qwen3.5 9B in LM Studio interpreted its output with 65,536 context tokens. The answer arrived without HTTP 400.

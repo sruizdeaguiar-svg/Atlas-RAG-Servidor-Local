@@ -12,7 +12,7 @@ Servidor RAG local con aplicación nativa para macOS y cliente universal para iP
 
 ## Versión 1.1.4
 
-Contexto predeterminado de 65.536 tokens, hasta 256 variables en R y corrección de la interpretación local de resultados. [Detalles y validación](docs/CAMBIOS-1.1.4.md).
+Contexto predeterminado de 65.536 tokens, hasta 256 variables y 32 MiB de salida en R, y corrección de la interpretación local de resultados. [Detalles y validación](docs/CAMBIOS-1.1.4.md).
 
 ## Funciones
 
