@@ -10,7 +10,7 @@ for folder in ['server','web','native','ios']:
 files += [ROOT/'scripts'/n for n in SCRIPTS]
 files += list((ROOT/'tests').glob('test_*.py'))
 files += [ROOT/'docs'/n for n in ['ESTRUCTURA.md','STRUCTURE.en.md','GUIA.md','GUIDE.en.md','SEGURIDAD-1.1.3.md','SECURITY-1.1.3.en.md']]+list((ROOT/'docs/screenshots').glob('*.png'))
-files=sorted(set(files))
+files=sorted({p for p in files if not any(part.startswith('._') for part in p.relative_to(ROOT).parts)})
 for p in files:
     assert p.is_file(),p
     assert p.suffix not in {'.sqlite3','.pem','.key','.mobileprovision'},p
