@@ -18,7 +18,7 @@ def defaults():
     home=Path.home()
     roots=[str(p) for p in [Path('/Volumes/Seguridad/models'),Path('/Volumes/Seguridad/Llama'),home/'.cache/huggingface/hub',home/'.omlx/models',home/'.lmstudio/models'] if p.is_dir()]
     import shutil
-    candidates={'llama':['/opt/homebrew/bin/llama-server','/usr/local/bin/llama-server','/Volumes/Seguridad/Llama/llama.cpp/build/bin/llama-server'],'omlx':['/opt/homebrew/bin/omlx','/Applications/oMLX.app/Contents/MacOS/omlx-cli'],'vllm':['/opt/homebrew/bin/vllm','/usr/local/bin/vllm'],'lmstudio':[str(home/'.lmstudio/bin/lms')]}
+    candidates={'llama':['/opt/homebrew/bin/llama-server','/usr/local/bin/llama-server','/Volumes/Seguridad/Llama/llama.cpp/build/bin/llama-server'],'omlx':['/Applications/oMLX.app/Contents/MacOS/omlx-cli','/opt/homebrew/bin/omlx'],'vllm':['/opt/homebrew/bin/vllm','/usr/local/bin/vllm'],'lmstudio':[str(home/'.lmstudio/bin/lms')]}
     binaries={n:next((p for p in paths if Path(p).is_file()),shutil.which({'llama':'llama-server','lmstudio':'lms'}.get(n,n)) or paths[0]) for n,paths in candidates.items()}
     try:
         for volume in Path('/Volumes').iterdir():
@@ -59,8 +59,27 @@ def alive(r):
 def listening(port):
     with socket.socket() as s:s.settimeout(.25);return s.connect_ex(('127.0.0.1',port))==0
 
+def engine_env():
+    keep={'HOME','USER','LOGNAME','TMPDIR','LANG','LC_ALL','SHELL'}
+    return {**{k:v for k,v in os.environ.items() if k in keep},'PATH':'/opt/homebrew/bin:/usr/bin:/bin','HF_HUB_OFFLINE':'1','HF_HUB_DISABLE_TELEMETRY':'1','TRANSFORMERS_OFFLINE':'1','PYTHONDONTWRITEBYTECODE':'1'}
+
+def secured_command(name,args,env):
+    if name not in {'omlx','vllm'}:return args,env
+    overlay=APP_ROOT/'build'/'engine-security'/name
+    if not overlay.is_dir():raise ValueError('Install the latest Atlas engine security dependencies before starting '+name)
+    binary=Path(args[0]).resolve()
+    if name=='omlx':
+        app=binary.parents[1];resources=app/'Resources';python=resources/'Python/cpython-3.11/bin/python3'
+        if not python.is_file():raise ValueError('Unsupported oMLX runtime; select the supported macOS app')
+        env={**env,'PYTHONHOME':str(resources/'Python/cpython-3.11'),'PYTHONPATH':str(resources)+':'+str(resources/'Python/framework-mlx-base/lib/python3.11/site-packages')}
+    else:
+        with binary.open('rb') as handle:first=handle.readline(1024).decode(errors='strict').strip()
+        python=Path(first[2:]) if first.startswith('#!') else Path('')
+        if not python.is_absolute() or not python.is_file() or 'python3.12' not in str(python):raise ValueError('Unsupported vLLM Python runtime; use the supported Python 3.12 installation')
+    return [str(python),'-B',str(APP_ROOT/'scripts/engine_entry.py'),name,*args],env
+
 def command(args,timeout=40):
-    try:r=subprocess.run(args,stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,timeout=timeout,env={**os.environ,'HF_HUB_OFFLINE':'1','HF_HUB_DISABLE_TELEMETRY':'1'})
+    try:r=subprocess.run(args,stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,timeout=timeout,env=engine_env())
     except subprocess.TimeoutExpired:raise ValueError('Local engine command timed out. Open LM Studio on the Mac if its service is unavailable.')
     if r.returncode:raise ValueError((r.stderr or r.stdout or 'Engine command failed')[-1200:])
     return r.stdout
@@ -181,7 +200,9 @@ def status():
     job=dict(JOB)
     r=record();p=alive(r);rss=0;pids=[]
     if p:
-        for child in [p]+p.children(recursive=True):
+        try:family=[p]+p.children(recursive=True)
+        except psutil.Error:p=None;family=[]
+        for child in family:
             try:rss+=child.memory_info().rss;pids.append(child.pid)
             except psutil.Error:pass
     running=bool(p) if r.get('name')!='lmstudio' else bool(r and listening(r['port']))
@@ -217,7 +238,12 @@ def stop_all():
                     if abs(c.create_time()-identities[c.pid])<.01:c.kill()
                 except psutil.NoSuchProcess:pass
             _,pending=psutil.wait_procs(pending,timeout=3)
-            if pending:raise ValueError('An Atlas engine process could not be stopped')
+            live=[]
+            for child in pending:
+                try:
+                    if child.is_running() and child.status()!=psutil.STATUS_ZOMBIE:live.append(child)
+                except psutil.NoSuchProcess:pass
+            if live:raise ValueError('An Atlas engine process could not be stopped')
             owned=CHILDREN.pop(r['pid'],None)
             if owned:owned.wait(timeout=2)
     owned=CHILDREN.pop(r.get('pid'),None)
@@ -269,10 +295,22 @@ def launch(name,model,context):
         if not was_open:save({'name':name,'port':port,'model':'','api_model':'','context':context})
         lmstudio_app('start')
         if CANCEL.is_set():lmstudio_app('quit');raise ValueError('Engine operation cancelled')
+        # The freshly opened GUI can restore its own API and models automatically.
+        # Stop that restored state before binding Atlas's dedicated loopback port.
+        try:command([binary,'server','stop'],45)
+        except ValueError as exc:
+            if 'server is not running' not in str(exc).lower():raise
         existing=json.loads(command([binary,'ps','--json'],20))
-        if existing:raise ValueError('LM Studio has models loaded outside Atlas. Stop them explicitly before enabling management.')
+        if existing:
+            command([binary,'unload','--all'],90)
+            if json.loads(command([binary,'ps','--json'],20)):raise ValueError('LM Studio did not release its restored models')
         if CANCEL.is_set():raise ValueError('Engine operation cancelled')
         command([binary,'server','start','--port',str(port),'--bind','127.0.0.1'],45)
+        deadline=time.monotonic()+20
+        while not listening(port):
+            if time.monotonic()>deadline:raise ValueError('LM Studio did not open the dedicated Atlas port')
+            if CANCEL.is_set():raise ValueError('Engine operation cancelled')
+            time.sleep(.2)
         r={'name':name,'port':port,'model':model['id'] if model else '','api_model':api_model,'context':context};save(r)
         if model:
             command([binary,'load',model.get('model_key',model['path']),'--identifier',api_model]+([] if embedding else ['--context-length',str(context)])+['-y'],180)
@@ -280,7 +318,8 @@ def launch(name,model,context):
         if embedding:verify_embedding(port,api_model)
         return r
     log=(ROOT/(name+'.log')).open('ab')
-    env={**os.environ,'HF_HUB_OFFLINE':'1','HF_HUB_DISABLE_TELEMETRY':'1','TRANSFORMERS_OFFLINE':'1','OMLX_BASE_PATH':str(ROOT/'omlx')}
+    env={**engine_env(),'OMLX_BASE_PATH':str(ROOT/'omlx')}
+    args,env=secured_command(name,args,env)
     proc=subprocess.Popen(args,cwd=ROOT,env=env,stdin=subprocess.DEVNULL,stdout=log,stderr=log,start_new_session=True);log.close();CHILDREN[proc.pid]=proc
     r={'name':name,'pid':proc.pid,'created':psutil.Process(proc.pid).create_time(),'port':port,'model':model['id'] if model else '','api_model':api_model,'context':context};save(r)
     deadline=time.monotonic()+180
@@ -315,7 +354,7 @@ def select(name,model_id='',context=4096):
     current=record()
     if current.get('name')==name and current.get('model')==model_id and current.get('context')==context and status()['running']:return current
     stop_all() # Previous process exits completely before any new weights are loaded.
-    if name!='lmstudio':close_lmstudio_completely()
+    close_lmstudio_completely()
     if model:budget(model,context)
     if CANCEL.is_set():raise ValueError('Engine operation cancelled')
     try:

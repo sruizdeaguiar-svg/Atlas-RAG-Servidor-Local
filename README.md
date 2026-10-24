@@ -176,3 +176,5 @@ Las bases de datos, credenciales, modelos, capturas privadas, perfiles de Apple 
 ## Historial de versiones
 
 Las notas y descargas anteriores están en la rama [historial-versiones](https://github.com/sruizdeaguiar-svg/Atlas-RAG-Servidor-Local/tree/historial-versiones). `main` contiene el código actual; cada entrega conserva su etiqueta y su publicación en Releases.
+
+[Política e informe de seguridad](SECURITY.md).

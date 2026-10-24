@@ -174,3 +174,5 @@ Databases, credentials, model weights, private screenshots, Apple profiles and p
 ## Version history
 
 Previous release notes and downloads are indexed on the [historial-versiones branch](https://github.com/sruizdeaguiar-svg/Atlas-RAG-Servidor-Local/tree/historial-versiones). `main` contains current source; each release keeps its tag and Release downloads.
+
+[Security policy and review](SECURITY.md).

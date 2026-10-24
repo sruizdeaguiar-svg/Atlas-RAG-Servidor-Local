@@ -14,9 +14,21 @@ def watch():
         for col in rows('SELECT * FROM collections WHERE autoscan=1'):
             try: indexing.start(col['id'],setting('index_owner_'+str(col['id']),0))
             except ValueError: pass
+def resume_update_indexing():
+    pending=setting('resume_after_update',[])
+    set_setting('resume_after_update',[])
+    for item in pending[:100]:
+        try:
+            cid,uid=int(item['collection_id']),int(item['user_id'])
+            found=rows('SELECT id,username,role FROM users WHERE id=? AND active=1',(uid,))
+            if not found: continue
+            collection(cid,found[0],True)
+            indexing.start(cid,uid)
+            audit(uid,'index.resume-update',cid)
+        except (ValueError,KeyError,TypeError,HTTPException): pass
 @contextlib.asynccontextmanager
 async def lifespan(app):
-    init(); STOP.clear(); thread=threading.Thread(target=watch,daemon=True); thread.start()
+    init(); resume_update_indexing(); STOP.clear(); thread=threading.Thread(target=watch,daemon=True); thread.start()
     yield
     STOP.set()
     try:
@@ -25,6 +37,8 @@ async def lifespan(app):
     except Exception: pass
     for event in list(indexing.CANCEL.values()): event.set()
 app=FastAPI(title='Atlas RAG Local',lifespan=lifespan,docs_url=None,redoc_url=None,openapi_url=None)
+from .security import RequestBodyLimit
+app.add_middleware(RequestBodyLimit)
 
 @app.middleware('http')
 async def boundary(req,call_next):
@@ -86,7 +100,8 @@ class Credentials(BaseModel):
     password:str=Field(min_length=10,max_length=256)
 def credentials_check(b):
     if not re.fullmatch(r'[\w.@+-]+',b.username): raise ValueError('Invalid username')
-FAILURES={}; AUTH_LOCK=threading.Lock()
+from collections import OrderedDict
+FAILURES=OrderedDict(); IP_FAILURES=OrderedDict(); AUTH_LOCK=threading.Lock(); AUTH_WORKERS=threading.BoundedSemaphore(2)
 @app.get('/api/health')
 def health(): return {'status':'ok','app':'atlas-rag','instance':os.environ.get('RAG_INSTANCE',''),'setup':not bool(rows('SELECT id FROM users LIMIT 1'))}
 @app.post('/api/setup')
@@ -99,13 +114,26 @@ def setup(b:Credentials,req:Request,response:Response):
     return login(b,req,response)
 @app.post('/api/login')
 def login(b:Credentials,req:Request,response:Response):
-    now=time.time(); key=b.username.casefold()
-    recent=[t for t in FAILURES.get(key,[]) if t>now-300]
-    if len(recent)>=8: raise HTTPException(429,'Too many attempts; wait five minutes')
+    if not AUTH_WORKERS.acquire(blocking=False):raise HTTPException(429,'Authentication is busy; retry shortly')
+    try:return login_checked(b,req,response)
+    finally:AUTH_WORKERS.release()
+
+def login_checked(b,req,response):
+    now=time.time(); key=b.username.casefold(); peer=req.client.host if req.client else 'unknown'
+    with AUTH_LOCK:
+        recent=[t for t in FAILURES.get(key,[]) if t>now-300]
+        by_ip=[t for t in IP_FAILURES.get(peer,[]) if t>now-300]
+        if len(recent)>=8 or len(by_ip)>=60:raise HTTPException(429,'Too many attempts; wait five minutes')
     found=rows('SELECT * FROM users WHERE username=? AND active=1',(b.username,))
     if not found or not password_ok(b.password,found[0]['password']):
-        FAILURES[key]=recent+[now]; raise HTTPException(401,'Invalid credentials')
-    FAILURES.pop(key,None); token=secrets.token_urlsafe(40)
+        with AUTH_LOCK:
+            FAILURES[key]=recent+[now];FAILURES.move_to_end(key)
+            IP_FAILURES[peer]=by_ip+[now];IP_FAILURES.move_to_end(peer)
+            while len(FAILURES)>4096:FAILURES.popitem(last=False)
+            while len(IP_FAILURES)>512:IP_FAILURES.popitem(last=False)
+        raise HTTPException(401,'Invalid credentials')
+    with AUTH_LOCK:FAILURES.pop(key,None)
+    token=secrets.token_urlsafe(40)
     with db() as c:
         c.execute('DELETE FROM sessions WHERE expires<?',(now,))
         c.execute('INSERT INTO sessions VALUES(?,?,?)',(digest(token),found[0]['id'],now+12*3600))

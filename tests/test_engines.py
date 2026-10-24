@@ -45,6 +45,17 @@ def test_memory_guard_rejects_oversize_before_launch(monkeypatch):
     monkeypatch.setattr(engines.psutil,'virtual_memory',lambda:type('Memory',(),{'available':4*1024**3})())
     with pytest.raises(ValueError):engines.budget({'size_bytes':8*1024**3},4096)
 
+def test_status_handles_exit_during_process_inspection(manager,monkeypatch):
+    import psutil
+    class Exiting:
+        def children(self,recursive=True):raise psutil.NoSuchProcess(123)
+    with monkeypatch.context() as patch:
+        patch.setattr(engines,'record',lambda:{'name':'llama','pid':123})
+        patch.setattr(engines,'alive',lambda r:Exiting())
+        patch.setattr(engines,'lmstudio_status',lambda:{'application_running':False})
+        assert not engines.status()['running']
+
+
 def test_stop_terminates_own_children_and_releases_port(manager):
     import psutil,time
     engines.ROOT.mkdir()

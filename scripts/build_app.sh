@@ -2,6 +2,7 @@
 set -euo pipefail
 cd "${0:A:h:h}"
 TASK_PROJECT="$PWD"
+.venv/bin/python -B scripts/prepare_engine_security.py
 TASK_BUILD="/private/tmp/atlas-rag-build"
 mkdir -p "$TASK_BUILD" build
 COPYFILE_DISABLE=1 cp native/Atlas.swift "$TASK_BUILD/Atlas.swift"
@@ -25,7 +26,7 @@ COPYFILE_DISABLE=1 rsync -a --exclude='._*' --exclude='__pycache__' .venv/lib/py
 if [[ -d "$TASK_RUNTIME/.venv" ]]; then rm -rf "$TASK_RUNTIME/.venv"; fi
 printf '%s' "$TASK_PROJECT" > "$TASK_APP/Contents/Resources/source.path"
 cat > "$TASK_APP/Contents/Info.plist" <<'PLIST'
-<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>CFBundleExecutable</key><string>AtlasRAG</string><key>CFBundleIdentifier</key><string>local.atlas.rag</string><key>CFBundleName</key><string>Atlas RAG</string><key>CFBundleDisplayName</key><string>Atlas RAG Local</string><key>CFBundleVersion</key><string>1</string><key>CFBundleShortVersionString</key><string>1.1.2</string><key>NSRemovableVolumesUsageDescription</key><string>Atlas indexes document folders that you select on external drives.</string><key>NSDocumentsFolderUsageDescription</key><string>Atlas accesses document folders you choose for indexing.</string><key>NSHighResolutionCapable</key><true/><key>NSAppTransportSecurity</key><dict><key>NSAllowsLocalNetworking</key><true/></dict></dict></plist>
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>CFBundleExecutable</key><string>AtlasRAG</string><key>CFBundleIdentifier</key><string>local.atlas.rag</string><key>CFBundleName</key><string>Atlas RAG</string><key>CFBundleDisplayName</key><string>Atlas RAG Local</string><key>CFBundleVersion</key><string>1</string><key>CFBundleShortVersionString</key><string>1.1.3</string><key>NSRemovableVolumesUsageDescription</key><string>Atlas indexes document folders that you select on external drives.</string><key>NSDocumentsFolderUsageDescription</key><string>Atlas accesses document folders you choose for indexing.</string><key>NSHighResolutionCapable</key><true/><key>NSAppTransportSecurity</key><dict><key>NSAllowsLocalNetworking</key><true/></dict></dict></plist>
 PLIST
 mkdir -p "$TASK_BUILD/icon.iconset"
 COPYFILE_DISABLE=1 cp native/Icon.swift "$TASK_BUILD/Icon.swift"
