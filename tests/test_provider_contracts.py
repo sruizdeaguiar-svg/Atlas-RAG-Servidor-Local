@@ -102,3 +102,15 @@ def test_real_catalog_metadata_and_hidden_models(monkeypatch):
     monkeypatch.setattr(providers.httpx,'get',lambda *a,**k:Reply({'models':[{'slug':'visible','display_name':'Visible','context_window':500000,'supported_reasoning_levels':[{'effort':'low'},{'effort':'high'}],'default_reasoning_level':'low'},{'slug':'hidden','visibility':'hide'}]}))
     data=providers.catalog(1,'openai',True)
     assert len(data)==1 and data[0]['reasoning_levels']==['low','high'] and data[0]['max_context']==500000
+
+def test_embedding_catalog_filters_chat_and_keeps_capabilities(monkeypatch):
+    entries=[{'id':'chat-model','name':'Chat','type':'llm'},
+             {'id':'vector-encoder','name':'Encoder','type':'embedding'},
+             {'id':'nomic-embed-text','name':'Nomic','type':'llm'},
+             {'id':'bge-m3','name':'BGE','type':'llm'}]
+    monkeypatch.setattr(providers,'catalog',lambda uid,name:entries)
+    assert [m['id'] for m in providers.embedding_models(1,'llama')]==['vector-encoder','nomic-embed-text','bge-m3']
+
+def test_embedding_catalog_rejects_cloud_without_query(monkeypatch):
+    monkeypatch.setattr(providers,'catalog',lambda *a:pytest.fail('Cloud must not be queried'))
+    with pytest.raises(ValueError):providers.embedding_models(1,'openai')

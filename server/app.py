@@ -380,6 +380,9 @@ class ProviderTest(BaseModel):
     inference:bool=False
     parameters:dict|None=None
     model:str=''
+@app.get('/api/providers/{name}/embedding-models')
+def provider_embedding_models(name:str,u=Depends(admin)):
+    return {'catalog':providers.embedding_models(u['id'],name)}
 @app.post('/api/providers/test')
 def provider_test(b:ProviderTest,u=Depends(user)):
     entries=providers.catalog(u['id'],b.name,b.consent); out={'models':[m['id'] for m in entries],'catalog':entries}

@@ -75,6 +75,16 @@ def catalog(uid,name,consent=False):
             except (httpx.HTTPError,ValueError): pass
         return out
     except httpx.HTTPError: raise ValueError(f'{name}: endpoint unavailable')
+def embedding_models(uid,name):
+    if name not in {'llama','omlx','vllm','lmstudio'}:
+        raise ValueError('Select a local embedding provider')
+    # Prefer explicit capability metadata; older compatible servers expose names only.
+    def supports_embedding(item):
+        kind=str(item.get('type','')).lower()
+        ident=(item['id']+' '+item.get('name','')).lower()
+        return kind in {'embedding','embeddings','text-embedding'} or any(x in ident for x in ['embed','bge-','minilm','e5-','gte-'])
+    return [m for m in catalog(uid,name) if supports_embedding(m)]
+
 def models(uid,name,consent=False): return [m['id'] for m in catalog(uid,name,consent)]
 
 def validated_profile(value):
