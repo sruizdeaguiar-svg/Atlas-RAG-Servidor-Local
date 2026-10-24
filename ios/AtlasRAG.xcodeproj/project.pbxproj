@@ -1,0 +1,22 @@
+// !$*UTF8*$!
+{ archiveVersion = 1; classes = {}; objectVersion = 56; objects = {
+A00000000000000000000001 = {isa = PBXProject; attributes = {LastUpgradeCheck = 2700;}; buildConfigurationList = A00000000000000000000002; compatibilityVersion = "Xcode 14.0"; developmentRegion = es; hasScannedForEncodings = 0; knownRegions = (es,en,Base); mainGroup = A00000000000000000000003; productRefGroup = A00000000000000000000004; projectDirPath = ""; projectRoot = ""; targets = (A00000000000000000000005);};
+A00000000000000000000002 = {isa = XCConfigurationList; buildConfigurations = (A00000000000000000000010,A00000000000000000000011); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release;};
+A00000000000000000000003 = {isa = PBXGroup; children = (A00000000000000000000006,A00000000000000000000007,A00000000000000000000008,A00000000000000000000004); sourceTree = "<group>";};
+A00000000000000000000004 = {isa = PBXGroup; children = (A00000000000000000000009); name = Products; sourceTree = "<group>";};
+A00000000000000000000005 = {isa = PBXNativeTarget; buildConfigurationList = A00000000000000000000012; buildPhases = (A00000000000000000000013,A00000000000000000000014,A00000000000000000000015); buildRules = (); dependencies = (); name = AtlasRAG; productName = AtlasRAG; productReference = A00000000000000000000009; productType = "com.apple.product-type.application";};
+A00000000000000000000006 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AtlasRAG/AtlasRAGApp.swift; sourceTree = "<group>";};
+A00000000000000000000007 = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = AtlasRAG/Assets.xcassets; sourceTree = "<group>";};
+A00000000000000000000008 = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = AtlasRAG/Info.plist; sourceTree = "<group>";};
+A00000000000000000000009 = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AtlasRAG.app; sourceTree = BUILT_PRODUCTS_DIR;};
+A00000000000000000000010 = {isa = XCBuildConfiguration; buildSettings = {SDKROOT = iphoneos; IPHONEOS_DEPLOYMENT_TARGET = 17.0; SWIFT_VERSION = 5.0; CLANG_ENABLE_MODULES = YES;}; name = Debug;};
+A00000000000000000000011 = {isa = XCBuildConfiguration; buildSettings = {SDKROOT = iphoneos; IPHONEOS_DEPLOYMENT_TARGET = 17.0; SWIFT_VERSION = 5.0; CLANG_ENABLE_MODULES = YES; SWIFT_COMPILATION_MODE = wholemodule;}; name = Release;};
+A00000000000000000000012 = {isa = XCConfigurationList; buildConfigurations = (A00000000000000000000016,A00000000000000000000017); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release;};
+A00000000000000000000013 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A00000000000000000000018); runOnlyForDeploymentPostprocessing = 0;};
+A00000000000000000000014 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0;};
+A00000000000000000000015 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (A00000000000000000000019); runOnlyForDeploymentPostprocessing = 0;};
+A00000000000000000000016 = {isa = XCBuildConfiguration; buildSettings = {PRODUCT_BUNDLE_IDENTIFIER = local.atlas.rag.ios; PRODUCT_NAME = AtlasRAG; INFOPLIST_FILE = AtlasRAG/Info.plist; TARGETED_DEVICE_FAMILY = "1,2"; ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon; CODE_SIGN_STYLE = Automatic; SWIFT_OPTIMIZATION_LEVEL = "-Onone";}; name = Debug;};
+A00000000000000000000017 = {isa = XCBuildConfiguration; buildSettings = {PRODUCT_BUNDLE_IDENTIFIER = local.atlas.rag.ios; PRODUCT_NAME = AtlasRAG; INFOPLIST_FILE = AtlasRAG/Info.plist; TARGETED_DEVICE_FAMILY = "1,2"; ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon; CODE_SIGN_STYLE = Automatic;}; name = Release;};
+A00000000000000000000018 = {isa = PBXBuildFile; fileRef = A00000000000000000000006;};
+A00000000000000000000019 = {isa = PBXBuildFile; fileRef = A00000000000000000000007;};
+}; rootObject = A00000000000000000000001; }

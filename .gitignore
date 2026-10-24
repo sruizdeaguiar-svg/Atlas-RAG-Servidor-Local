@@ -1,0 +1,19 @@
+.venv/
+var/
+.chroma_db/
+._*
+__pycache__/
+.pytest_cache/
+.DS_Store
+build/
+
+datos/
+migration-backups/
+.qa-external/
+dist/
+*.app/
+
+evidence/
+publicacion/
+Prueba iPad Atlas/
+docs/OPERACIONES-LOCALES.md
