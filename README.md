@@ -160,3 +160,5 @@ Las bases de datos, credenciales, modelos, capturas privadas, perfiles de Apple 
 ## Licencia
 
 [Apache License 2.0](LICENSE). Copyright 2026 sruizdeaguiar-svg y colaboradores. Consulta [NOTICE](NOTICE). Los runtimes, dependencias y modelos de terceros conservan sus licencias; la licencia del proyecto no cambia esas condiciones.
+
+![Vista de la aplicación Atlas RAG Local](docs/screenshots/colecciones.png)
