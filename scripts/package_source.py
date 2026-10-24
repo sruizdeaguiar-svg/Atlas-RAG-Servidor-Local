@@ -2,7 +2,7 @@
 from pathlib import Path
 import zipfile,json,hashlib,shutil
 ROOT=Path(__file__).resolve().parents[1]
-VERSION='1.1.1'
+VERSION='1.1.2'
 SCRIPTS=['build_app.sh','build_installer.sh','build_ios.sh','install.sh','install_ipad.sh','control.py','prepare_update.py','enable_lan.py','verify_release.py','verify_engine_lifecycle.py','mobile_qa.py','package_source.py']
 files=[ROOT/n for n in ['README.md','LICENSE','NOTICE','.gitignore','requirements.txt','requirements.lock.txt','Abrir Atlas.command']]
 for folder in ['server','web','native','ios']:

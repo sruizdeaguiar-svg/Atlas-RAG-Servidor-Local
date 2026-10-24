@@ -170,3 +170,7 @@ Las bases de datos, credenciales, modelos, capturas privadas, perfiles de Apple 
 [Apache License 2.0](LICENSE). Copyright 2026 sruizdeaguiar-svg y colaboradores. Consulta [NOTICE](NOTICE). Los runtimes, dependencias y modelos de terceros conservan sus licencias; la licencia del proyecto no cambia esas condiciones.
 
 ![Vista de la aplicación Atlas RAG Local](docs/screenshots/colecciones.png)
+
+### Actualización 1.1.2
+
+Corregida la navegación con teclado físico en iPad: Tab avanza entre campos, botones y selectores; Mayús+Tab retrocede. Incluye la pantalla nativa de conexión y los formularios de la biblioteca. Verificado en un iPad físico y en los campos de acceso del navegador de escritorio.

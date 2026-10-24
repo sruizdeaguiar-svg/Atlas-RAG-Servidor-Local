@@ -24,6 +24,6 @@ TASK_SIGN="${ATLAS_CODESIGN_IDENTITY:-$(security find-identity -v -p codesigning
 xattr -cr "$TASK_APP"
 codesign --force --deep --sign "${TASK_SIGN:--}" "$TASK_APP"
 codesign --verify --deep --strict "$TASK_APP"
-COPYFILE_DISABLE=1 pkgbuild --component "$TASK_APP" --install-location /Applications --identifier local.atlas.rag.installer --version 1.1.1 dist/Atlas-RAG-1.1.1-arm64.pkg
-hdiutil create -ov -format UDZO -volname 'Atlas RAG Local' -srcfolder "$TASK_INSTALLER/image" dist/Atlas-RAG-1.1.1-arm64.dmg
-shasum -a 256 dist/Atlas-RAG-1.1.1-arm64.pkg dist/Atlas-RAG-1.1.1-arm64.dmg > dist/SHA256SUMS-mac.txt
+COPYFILE_DISABLE=1 pkgbuild --component "$TASK_APP" --install-location /Applications --identifier local.atlas.rag.installer --version 1.1.2 dist/Atlas-RAG-1.1.2-arm64.pkg
+hdiutil create -ov -format UDZO -volname 'Atlas RAG Local' -srcfolder "$TASK_INSTALLER/image" dist/Atlas-RAG-1.1.2-arm64.dmg
+shasum -a 256 dist/Atlas-RAG-1.1.2-arm64.pkg dist/Atlas-RAG-1.1.2-arm64.dmg > dist/SHA256SUMS-mac.txt
