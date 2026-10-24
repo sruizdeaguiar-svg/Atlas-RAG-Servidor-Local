@@ -34,7 +34,7 @@ Los administradores pueden activar la gestión automática en Modelos e IA. Conf
 
 La gestión automática detiene el motor anterior antes de cargar otro. Cambiar de modelo también libera el proceso anterior. La parada de LM Studio descarga modelos, detiene su API y cierra la aplicación. Las API gestionadas usan loopback, puertos 18880–18883. Las conexiones externas mantienen su propio ciclo salvo parada externa confirmada por un administrador.
 
-El contexto afecta a la memoria al cargar un modelo gestionado. Temperatura, Top-P y máximo de salida se aplican por petición. Atlas estima la memoria incluyendo todos los pesos MoE, contexto y buffers. Si rechaza la carga, reduce contexto o elige un modelo menor.
+El contexto afecta a la memoria al cargar un modelo gestionado. Temperatura, Top-P y máximo de salida se aplican por petición. Atlas estima la memoria incluyendo todos los pesos MoE, contexto y buffers. La estimación no bloquea la carga por defecto. Puedes activar el bloqueo opcional en Modelos e IA. Con él desactivado, macOS y el motor gestionan memoria y swap; los errores propios del motor siguen mostrándose.
 
 Parar todos los motores de Atlas libera procesos gestionados sin borrar pesos. Parar motores externos detectados es una acción separada, con confirmación, que puede interrumpir consultas de otras aplicaciones.
 

@@ -81,13 +81,13 @@ Only one managed engine remains active. Atlas stops the previous engine before l
 
 **Stop all Atlas engines and release memory** stops managed processes. A separate action lists externally started engines and requires confirmation before stopping them. This can interrupt other requests. Neither action deletes model weights or globally purges system caches.
 
-Managed services listen on loopback ports 18880–18883. Atlas does not silently take over an external LM Studio API or its loaded models. A memory estimate is checked before loading; managed context supports 512–32768 tokens. Model compatibility depends on its architecture and the installed engine version.
+Managed services listen on loopback ports 18880–18883. Atlas does not silently take over an external LM Studio API or its loaded models. The memory estimate is informational by default; an optional preflight block can be enabled in Models & AI; managed context supports 512–32768 tokens. Model compatibility depends on its architecture and the installed engine version.
 
 ### Collection embeddings
 
 Add folder has separate embedding-engine and embedding-model selectors. With automatic management enabled, selections made on an iPad are executed on the Mac: the engine starts and loads the model, with loading, ready or error status. Apple uses its built-in language-specific model. The embedding catalog is separate from the chat catalog.
 
-Mixture-of-experts (MoE) models require memory for all weights, plus context and buffers. The preflight reports weight size, estimated requirements and available RAM. It does not force a load or stop unrelated applications to make room.
+Mixture-of-experts (MoE) models require memory for all weights, plus context and buffers. The preflight reports weight size, estimated requirements and available RAM. Loading is allowed even when the estimate exceeds available RAM unless you enable the optional block. macOS and the engine manage memory and swap.
 
 ## Analysis and privacy
 

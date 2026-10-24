@@ -41,9 +41,15 @@ def test_switch_closes_previous_before_start(manager,monkeypatch):
     engines.select('llama',model['id'])
     assert events==['stop-complete','start']
 
-def test_memory_guard_rejects_oversize_before_launch(monkeypatch):
+def test_memory_guard_rejects_only_when_enabled(monkeypatch):
+    monkeypatch.setattr(engines,'config',lambda:{'memory_guard':True})
     monkeypatch.setattr(engines.psutil,'virtual_memory',lambda:type('Memory',(),{'available':4*1024**3})())
     with pytest.raises(ValueError):engines.budget({'size_bytes':8*1024**3},4096)
+
+def test_default_memory_estimate_does_not_block_load(monkeypatch):
+    monkeypatch.setattr(engines,'config',lambda:{})
+    monkeypatch.setattr(engines.psutil,'virtual_memory',lambda:type('Memory',(),{'available':4*1024**3})())
+    assert engines.budget({'size_bytes':8*1024**3},4096)>4*1024**3
 
 def test_status_handles_exit_during_process_inspection(manager,monkeypatch):
     import psutil

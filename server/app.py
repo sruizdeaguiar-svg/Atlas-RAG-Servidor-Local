@@ -348,6 +348,7 @@ def history(u=Depends(user)):
     return out
 class EngineConfigInput(BaseModel):
     enabled:bool
+    memory_guard:bool|None=None
     roots:list[str]|None=None
 class EngineActionInput(BaseModel):
     action:Literal['select','stop','stop-detected']

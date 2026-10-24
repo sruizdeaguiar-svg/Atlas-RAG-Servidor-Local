@@ -83,13 +83,13 @@ Solo se mantiene un motor gestionado activo. Antes de cargar otro modelo o cambi
 
 **Parar todos los motores de Atlas y liberar memoria** cierra los procesos gestionados. Para afectar a motores abiertos fuera de Atlas existe una acción separada que muestra la lista detectada y exige confirmación. Puede interrumpir otras consultas. No borra pesos ni vacía globalmente las cachés del sistema.
 
-Los servicios propios escuchan en loopback, en los puertos 18880–18883. Atlas no toma control silenciosamente de una API externa de LM Studio ni de sus modelos activos. Comprueba una estimación de memoria antes de cargar; el contexto gestionado admite 512–32768 tokens. La compatibilidad depende de la arquitectura del modelo y de la versión instalada del motor.
+Los servicios propios escuchan en loopback, en los puertos 18880–18883. Atlas no toma control silenciosamente de una API externa de LM Studio ni de sus modelos activos. La estimación de memoria es informativa por defecto; el bloqueo previo puede activarse opcionalmente en Modelos e IA; el contexto gestionado admite 512–32768 tokens. La compatibilidad depende de la arquitectura del modelo y de la versión instalada del motor.
 
 ### Embeddings por colección
 
 En Añadir carpeta se eligen por separado el motor y el modelo de embeddings. Con la gestión automática activada, la elección se ejecuta en el Mac también desde el iPad: arranca el motor y carga el modelo, con indicación de carga, estado listo o error. Apple usa su modelo integrado según el idioma. El catálogo de embeddings está separado del de conversación.
 
-Los modelos MoE requieren memoria para todos sus pesos, además del contexto y los buffers. La comprobación previa muestra los pesos, la estimación y la RAM disponible; no fuerza cargas ni detiene aplicaciones ajenas para hacerlas caber.
+Los modelos MoE requieren memoria para todos sus pesos, además del contexto y los buffers. La comprobación previa muestra los pesos, la estimación y la RAM disponible; permite cargar aunque la estimación supere la RAM disponible, salvo que actives el bloqueo opcional. macOS y el motor gestionan la memoria y el swap.
 
 ## Análisis y privacidad
 

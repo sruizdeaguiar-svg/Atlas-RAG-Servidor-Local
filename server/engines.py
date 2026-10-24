@@ -26,7 +26,7 @@ def defaults():
                 directory=volume/suffix
                 if directory.is_dir() and str(directory) not in roots:roots.append(str(directory))
     except OSError:pass
-    return {'enabled':True,'roots':roots,'binaries':binaries}
+    return {'enabled':True,'memory_guard':False,'roots':roots,'binaries':binaries}
 def config():return setting('engine_manager',defaults())
 def configure(value):
     if JOB['busy']:raise ValueError('Wait for the current engine operation')
@@ -40,6 +40,7 @@ def configure(value):
         if len(roots)>12:raise ValueError('At most 12 model directories')
         cfg['roots']=roots
     if 'enabled' in value:cfg['enabled']=bool(value['enabled'])
+    if 'memory_guard' in value:cfg['memory_guard']=bool(value['memory_guard'])
     set_setting('engine_manager',cfg)
     return cfg
 
@@ -256,7 +257,7 @@ def budget(model,context):
     # Includes conservative buffers; KV layout still depends on the model/runtime.
     estimated=int(model['size_bytes']*1.5)+1024**3+context*65536
     available=psutil.virtual_memory().available
-    if estimated>available-2*1024**3:raise ValueError(f'Memoria insuficiente: pesos {model["size_bytes"]/1024**3:.1f} GB; estimación con contexto {context}: {estimated/1024**3:.1f} GB + 2 GB de reserva; disponibles ahora {available/1024**3:.1f} GB. Un MoE necesita todos sus pesos. Reduce el contexto o elige un modelo menor; Atlas no detiene motores externos automáticamente.')
+    if config().get('memory_guard',False) and estimated>available-2*1024**3:raise ValueError(f'Memoria insuficiente: pesos {model["size_bytes"]/1024**3:.1f} GB; estimación con contexto {context}: {estimated/1024**3:.1f} GB + 2 GB de reserva; disponibles ahora {available/1024**3:.1f} GB. Un MoE necesita todos sus pesos. Reduce el contexto o elige un modelo menor; Atlas no detiene motores externos automáticamente.')
     return estimated
 
 def launch(name,model,context):

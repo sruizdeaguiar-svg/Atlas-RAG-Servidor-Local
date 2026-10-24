@@ -34,7 +34,7 @@ Administrators can enable automatic management in Models & AI. Configure executa
 
 With automatic management, switching stops the previous managed engine before loading the next. A model change also releases the previous process. LM Studio shutdown unloads models, stops its API and quits its application. Managed APIs use loopback ports 18880–18883. External connections retain their own lifecycle unless an administrator explicitly confirms the separate external-engine stop action.
 
-Context affects memory allocation when a managed model loads. Temperature, Top-P and output limits apply to individual requests. Atlas estimates memory before loading, including all MoE weights, context and buffers. A rejection means the model or settings exceed that estimate; reduce context or choose a smaller model rather than forcing a load.
+Context affects memory allocation when a managed model loads. Temperature, Top-P and output limits apply to individual requests. Atlas estimates memory before loading, including all MoE weights, context and buffers. The estimate does not block loading by default. Enable the optional block in Models & AI if desired. With it disabled, macOS and the engine manage memory and swap; engine errors are still reported.
 
 Stop all Atlas engines releases managed processes without deleting weights. Stopping external detected engines is a separate confirmed operation and may interrupt other applications' requests.
 
