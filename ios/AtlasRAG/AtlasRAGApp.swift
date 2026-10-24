@@ -20,6 +20,8 @@ struct ConnectionView:View {
  @State private var pin=""
  @State private var connected=false
  @State private var error=""
+ private enum ConnectionField:Hashable {case server,pin,connect}
+ @FocusState private var focusedField:ConnectionField?
  var body:some View {
   NavigationStack {
    Group {
@@ -31,9 +33,9 @@ struct ConnectionView:View {
        Text("a").font(.custom("Georgia-Italic",size:78)).foregroundStyle(.white).frame(width:100,height:100).background(Color(red:0.08,green:0.43,blue:0.38),in:RoundedRectangle(cornerRadius:24))
        Text("Tu biblioteca, en tu red.").font(.largeTitle.bold())
        Text("En el Mac abre Atlas RAG → Servidor / Server → iPhone / iPad. Activa el acceso local y escanea su QR con la cámara del iPhone o pega el enlace de conexión aquí.").foregroundStyle(.secondary)
-       TextField("https://192.168.1.20:8766 o enlace atlasrag://…",text:$server,axis:.vertical).textInputAutocapitalization(.never).autocorrectionDisabled().textFieldStyle(.roundedBorder).accessibilityIdentifier("serverURL")
-       TextField("Huella SHA-256 del Mac",text:$pin,axis:.vertical).font(.system(.caption,design:.monospaced)).textInputAutocapitalization(.never).autocorrectionDisabled().textFieldStyle(.roundedBorder).accessibilityIdentifier("certificatePin")
-       Button("Conectar al Mac",action:connect).buttonStyle(.borderedProminent).tint(Color(red:0.08,green:0.43,blue:0.38)).accessibilityIdentifier("connect")
+       TextField("https://192.168.1.20:8766 o enlace atlasrag://…",text:$server).textInputAutocapitalization(.never).autocorrectionDisabled().textFieldStyle(.roundedBorder).accessibilityIdentifier("serverURL").focused($focusedField,equals:.server).submitLabel(.next).onSubmit{focusedField = .pin}.onKeyPress(keys:[.tab],phases:.down){press in focusedField = press.modifiers.contains(.shift) ? .connect:.pin;return .handled}
+       TextField("Huella SHA-256 del Mac",text:$pin).font(.system(.caption,design:.monospaced)).textInputAutocapitalization(.never).autocorrectionDisabled().textFieldStyle(.roundedBorder).accessibilityIdentifier("certificatePin").focused($focusedField,equals:.pin).submitLabel(.go).onSubmit(connect).onKeyPress(keys:[.tab],phases:.down){press in focusedField = press.modifiers.contains(.shift) ? .server:.connect;return .handled}
+       Button("Conectar al Mac",action:connect).buttonStyle(.borderedProminent).tint(Color(red:0.08,green:0.43,blue:0.38)).accessibilityIdentifier("connect").focused($focusedField,equals:.connect).onKeyPress(keys:[.tab],phases:.down){press in focusedField = press.modifiers.contains(.shift) ? .pin:.server;return .handled}
        Text("Conecta ambos dispositivos a la misma red. La huella identifica el certificado de tu Mac. Inicia sesión con tu usuario de Atlas; los archivos y el análisis se procesan en el servidor del Mac.").font(.footnote).foregroundStyle(.secondary)
       }.padding(28).frame(maxWidth:640)
      }.frame(maxWidth:.infinity)
@@ -55,11 +57,23 @@ struct ConnectionView:View {
  }
 }
 
+// Route hardware Tab before WebKit turns it into text input on iPadOS.
+final class AtlasKeyboardWebView:WKWebView {
+ override var keyCommands:[UIKeyCommand]? {
+  let next=UIKeyCommand(input:"\t",modifierFlags:[],action:#selector(nextControl))
+  let previous=UIKeyCommand(input:"\t",modifierFlags:[.shift],action:#selector(previousControl))
+  next.wantsPriorityOverSystemBehavior=true;previous.wantsPriorityOverSystemBehavior=true
+  return [next,previous]+(super.keyCommands ?? [])
+ }
+ @objc private func nextControl(){evaluateJavaScript("window.atlasMoveFocus?.(false)",completionHandler:nil)}
+ @objc private func previousControl(){evaluateJavaScript("window.atlasMoveFocus?.(true)",completionHandler:nil)}
+}
+
 struct AtlasWeb:UIViewRepresentable {
  let url:URL;let pin:String;@Binding var error:String
  func makeCoordinator()->Coordinator{Coordinator(self)}
  func makeUIView(context:Context)->WKWebView {
-  let view=WKWebView(frame:.zero);view.navigationDelegate=context.coordinator;view.uiDelegate=context.coordinator;view.allowsBackForwardNavigationGestures=true;view.load(URLRequest(url:url));return view
+  let view=AtlasKeyboardWebView(frame:.zero);view.navigationDelegate=context.coordinator;view.uiDelegate=context.coordinator;view.allowsBackForwardNavigationGestures=true;view.load(URLRequest(url:url,cachePolicy:.reloadRevalidatingCacheData));return view
  }
  func updateUIView(_ uiView:WKWebView,context:Context){context.coordinator.parent=self}
  final class Coordinator:NSObject,WKNavigationDelegate,WKUIDelegate,WKDownloadDelegate {
