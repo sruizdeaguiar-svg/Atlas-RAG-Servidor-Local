@@ -6,6 +6,7 @@ Esta rama conserva las notas y enlaces de las publicaciones anteriores, separada
 
 This branch keeps release notes and historical links separate from current code on `main`. Tags preserve each release's exact source. Original downloads remain in Releases. Notes reflect checks performed at that time; review the latest security fixes before installing an older build.
 
+- [v1.1.3 — Atlas RAG Local 1.1.3 · Seguridad y motores / Security & engines](versiones/v1.1.3.md)
 - [v1.1.2 — Atlas RAG Local 1.1.2 · Teclado físico en iPad](versiones/v1.1.2.md)
 - [v1.1.1 — Atlas RAG Local 1.1.1 · motores e iPad](versiones/v1.1.1.md)
 - [v1.1.0 — Atlas RAG Local 1.1.0 · macOS e iOS](versiones/v1.1.0.md)
